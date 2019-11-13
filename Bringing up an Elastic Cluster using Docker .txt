@@ -1,0 +1,39 @@
+1. 
+
+Bringing up an Elastic Search Cluster.
+
+sudo docker run -d --rm -h elasticsearch --name elasticsearch --net elknetwork -v "$(pwd)/data":/var/data -v "$(pwd)/logs":/var/logs -v $(pwd)/elasticsearch.yml":/usr/share/elasticsearch/config/elasticsearch.yml -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" elasticsearch:7.3.2
+
+CONFIGURATION of the elasticsearch.yml file.
+cluster.name: "docker-cluster"
+network.host: 0.0.0.0
+path.data: /var/data
+path.logs: /var/logs
+discovery.zen.minimum_master_nodes: 1
+discovery.type: single-node
+
+
+2. 
+Bringing up the Kibana.
+
+sudo docker run -d -p 5601:5601 -h kibana --name kibana --net elknetwork --link elasticsearch:elasticsearch kibana:7.3.2
+
+
+3. Setting up nginx so that it listens on a port for publicly accessing ES via a Kibana Browser.
+
+sudo docker run --name nginxRP --net elknetwork -p 80:80 -v "$(pwd)/default.conf":"/etc/nginx/conf.d/default.conf" -d nginx
+
+CONFIGURATION of the default.conf file.
+server {
+    listen       80;
+    server_name  localhost;
+
+    location / {
+        proxy_pass http://kibana:5601/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
